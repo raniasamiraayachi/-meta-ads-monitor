@@ -1,0 +1,30 @@
+name: Meta Ads Auto Monitor
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run monitoring cycle
+        run: node index.js
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          AD_ACCOUNT_IDS: ${{ secrets.AD_ACCOUNT_IDS }}
+          SPEND_THRESHOLD: '2'
+          MIN_SALES: '0'
+          DATE_PRESET: 'today'
