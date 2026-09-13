@@ -1,56 +1,88 @@
-# نظام المراقبة التلقائية للإعلانات (Meta Ads Auto Monitor)
+# Meta Ads Auto Monitor
 
-سكريبت بسيط يفحص كل الإعلانات النشيطة كل 10 دقايق، ويوقف أي إعلان صرف **$2 أو أكثر بلا حتى مبيعة**، بلا تدخل يدوي. يخدم مجانا 100% عبر GitHub Actions.
+A lightweight script that checks all active Meta (Facebook/Instagram) ads every 10 minutes and automatically pauses any ad that meets a stop rule — no manual monitoring needed. Runs 100% free via GitHub Actions.
 
 ---
 
-## 1) رفع الكود لـ GitHub
+## Stop rules
 
-1. سوي repository جديد فحسابك على GitHub (مثلا `meta-ads-monitor`)
-2. مهم: خليه **Public** باش تستافد من GitHub Actions مجانا بلا حدود
-3. ارفعي كل ملفات هاذ المجلد للـ repository (عبر git، ولا "Upload files" مباشرة من واجهة GitHub)
+An ad gets **paused** if **either** of these is true:
 
-## 2) إضافة الأسرار (Secrets)
+1. **No-sales rule:** spend ≥ `$2` AND sales ≤ `0`
+2. **Hard spend cap:** spend > `$3.5` (regardless of sales — a safety ceiling)
 
-فالـ repository، روحي لـ:
+Any ad that doesn't match either rule is left untouched. If a read error occurs for an ad (missing/incomplete data), it is **skipped, never paused**, and retried on the next cycle.
+
+---
+
+## 1) Push the code to GitHub
+
+1. Create a new repository (e.g. `meta-ads-monitor`)
+2. Make it **Public** so GitHub Actions runs unlimited and free
+3. Upload all files in this folder to the repository (drag & drop the *contents* of the folder, including the hidden `.github` folder)
+
+## 2) Add your secrets
+
+In the repository, go to:
 **Settings → Secrets and variables → Actions → New repository secret**
 
-أضيفي هاذ الاثنين:
+Add these (required):
 
-| اسم الـ Secret | القيمة |
+| Secret name | Value |
 |---|---|
-| `META_ACCESS_TOKEN` | الـ Access Token تاع System User اللي جهزتيه |
-| `AD_ACCOUNT_IDS` | أرقام الحسابات الإعلانية، مفصولة بفاصلة، مثال: `act_123456789,act_987654321` |
+| `META_ACCESS_TOKEN` | Your Meta System User access token |
+| `AD_ACCOUNT_IDS` | Comma-separated ad account IDs, e.g. `act_123,act_456` |
 
-⚠️ ما تحطيش الـ Token مباشرة فالكود ولا فملف عادي فالـ repo — غير فالـ Secrets.
+Add these (optional, for Telegram reports — see section 5):
 
-## 3) تفعيل الـ Workflow
+| Secret name | Value |
+|---|---|
+| `TELEGRAM_BOT_TOKEN` | Your Telegram bot token |
+| `TELEGRAM_CHAT_ID` | Your Telegram chat ID |
 
-- روحي لتبويب **Actions** فالـ repository
-- إذا طلب منك تفعيل الـ workflows، دوسي "I understand, enable"
-- الـ workflow (`ads-monitor.yml`) غادي يتشغل وحدو كل 10 دقايق
+⚠️ Never put the token directly in the code or in a regular file in the repo — Secrets only.
 
-## 4) تجربة يدوية (موصى بيها قبل ما تخليه تلقائي)
+## 3) Enable the workflow
 
-- فتبويب Actions، اختاري "Meta Ads Auto Monitor"
-- دوسي **"Run workflow"** (زر يمين) باش تجربيه مباشرة بلا ما تستناي 10 دقايق
-- شوفي النتيجة فاللوق (Logs) — يبان ليك كل إعلان: صرف، مبيعات، توقف ولا لا
+- Go to the **Actions** tab in the repository
+- If prompted, click "I understand my workflows, go ahead and enable them"
+- The workflow (`ads-monitor.yml`) will now run automatically every 10 minutes
 
-## 5) تعديل الشرط (اختياري)
+## 4) Manual test run (recommended before going fully automatic)
 
-الشرط الحالي: `spend >= 2$ و sales = 0`
+- In the **Actions** tab, select "Meta Ads Auto Monitor"
+- Click **"Run workflow"** to trigger it immediately instead of waiting 10 minutes
+- Open the run and check the logs — you'll see every ad's spend, sales, and whether it was paused or left alone
 
-باش تبدليه، عدلي فملف `.github/workflows/ads-monitor.yml`:
-- `SPEND_THRESHOLD: '2'` → بدليها بالرقم اللي تحبي
-- `MIN_SALES: '0'` → إذا حطيتي 1 مثلا، يوقف الإعلان إذا عندو مبيعة وحدة أو أقل
+## 5) Telegram reports (optional)
 
-## ملاحظات مهمة
+To get a summary message in Telegram after every cycle:
 
-- إذا وقع خطأ فقراءة إعلان معين (بيانات ناقصة)، السكريبت **يتخطاه بلا ما يوقفه**، ويعاود يقراه فالدورة الجاية
-- كل إعلان يتعامل معه بشكل مستقل تماما
-- GitHub Actions أحيانا يتأخر شوية (1-2 دقايق) عن الوقت المضبوط بالضبط، هذا عادي وماشي مشكل فهاذ النوع من المراقبة
+1. Open Telegram, search for **@BotFather**, send `/newbot`, follow the prompts, and copy the **bot token** it gives you
+2. Start a chat with your new bot (search its username and send any message, e.g. "hi")
+3. Get your **chat ID**: open this URL in your browser (replace `<TOKEN>` with your bot token):
+   `https://api.telegram.org/bot<TOKEN>/getUpdates`
+   Send your bot another message first, then reload that URL — look for `"chat":{"id":123456789,...}` and copy that number
+4. Add both as GitHub Secrets: `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID`
+5. Re-run the workflow — you'll get a message listing how many ads were checked, paused, and skipped, plus the names of any paused ads
 
-## تطوير مستقبلي (مو ضروري دابا)
+If these two secrets are not set, the script simply skips the Telegram step — nothing breaks.
 
-- إشعار Telegram بعد كل دورة (ملخص: كم توقف، كم بقى شغال)
-- شروط أكثر تعقيدا (مثلا: CPA، ROAS)
+## 6) Adjusting the rules (optional)
+
+Edit the `env:` section in `.github/workflows/ads-monitor.yml`:
+
+- `SPEND_THRESHOLD`: spend level for the no-sales rule (default `2`)
+- `MIN_SALES`: sales threshold for the no-sales rule (default `0`)
+- `HARD_SPEND_CAP`: spend ceiling that pauses an ad regardless of sales (default `3.5`)
+
+## Important notes
+
+- Each ad is evaluated **independently** — one ad's status never affects another
+- GitHub Actions' schedule can occasionally run a minute or two late; this is normal and not an issue for this kind of monitoring
+- The free tier applies as long as the repository stays Public
+
+## Possible future additions
+
+- More advanced rules (CPA, ROAS)
+- Per-account or per-campaign thresholds
