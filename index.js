@@ -91,7 +91,7 @@ async function pauseAd(adId) {
 }
 
 // ---------- Optional Telegram notification ----------
-async function sendTelegramReport(message) {
+async function sendTelegramMessage(message) {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return; // feature not configured, skip silently
 
   try {
@@ -106,6 +106,24 @@ async function sendTelegramReport(message) {
   }
 }
 
+// Telegram caps a single message at 4096 characters — split long reports into chunks
+async function sendTelegramReport(lines) {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return;
+
+  const MAX_LEN = 3500; // safety margin below the 4096 hard limit
+  let chunk = '';
+
+  for (const line of lines) {
+    if ((chunk + '\n' + line).length > MAX_LEN) {
+      await sendTelegramMessage(chunk);
+      chunk = line;
+    } else {
+      chunk = chunk ? `${chunk}\n${line}` : line;
+    }
+  }
+  if (chunk) await sendTelegramMessage(chunk);
+}
+
 // ---------- Main cycle ----------
 async function runCycle() {
   const startTime = new Date().toISOString();
@@ -114,7 +132,7 @@ async function runCycle() {
   let checked = 0;
   let paused = 0;
   let skipped = 0;
-  const pausedAdsList = [];
+  const adReportLines = []; // one line per successfully-checked ad (paused or not)
 
   for (const accountId of AD_ACCOUNT_IDS) {
     console.log(`\n--- Account: ${accountId} ---`);
@@ -143,11 +161,16 @@ async function runCycle() {
           const reason = hardCapRuleHit
             ? `hard spend cap (> $${HARD_SPEND_CAP})`
             : `no sales rule (>= $${SPEND_THRESHOLD} with <= ${MIN_SALES} sales)`;
-          pausedAdsList.push(`• ${ad.name} — spend $${spend.toFixed(2)}, sales ${sales} (${reason})`);
+          adReportLines.push(
+            `🛑 <b>${ad.name}</b> — $${spend.toFixed(2)} | ${sales} sales | PAUSED (${reason})`
+          );
           console.log(
             `🛑 PAUSED: "${ad.name}" | spend: $${spend.toFixed(2)} | sales: ${sales} | reason: ${reason}`
           );
         } else {
+          adReportLines.push(
+            `✅ ${ad.name} — $${spend.toFixed(2)} | ${sales} sales | running`
+          );
           console.log(
             `✅ OK: "${ad.name}" | spend: $${spend.toFixed(2)} | sales: ${sales}`
           );
@@ -167,17 +190,16 @@ async function runCycle() {
   console.log(`===== Cycle finished =====\n`);
 
   const summaryLines = [
-    `<b>Meta Ads Auto Monitor</b>`,
+    `<b>Meta Ads Auto Monitor</b> — ${startTime}`,
     `Checked: ${checked} | Paused: ${paused} | Skipped: ${skipped}`,
+    '',
+    ...adReportLines,
   ];
-  if (pausedAdsList.length > 0) {
-    summaryLines.push('', '<b>Paused ads:</b>', ...pausedAdsList);
-  }
-  await sendTelegramReport(summaryLines.join('\n'));
+  await sendTelegramReport(summaryLines);
 }
 
 runCycle().catch(async (err) => {
   console.error('❌ Fatal script error:', err.message);
-  await sendTelegramReport(`⚠️ Meta Ads Auto Monitor crashed: ${err.message}`);
+  await sendTelegramReport([`⚠️ Meta Ads Auto Monitor crashed: ${err.message}`]);
   process.exit(1);
 });
