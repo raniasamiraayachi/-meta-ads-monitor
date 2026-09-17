@@ -219,18 +219,25 @@ async function runCycle() {
 
   saveState(state);
 
+  const noActiveAds = checked === 0 && ignoredBlacklisted === 0;
+
   console.log(`\n===== Cycle summary =====`);
   console.log(`Total ads checked: ${checked}`);
   console.log(`Paused: ${paused}`);
   console.log(`Skipped (read error): ${skipped}`);
   console.log(`Ignored (blacklisted): ${ignoredBlacklisted}`);
+  if (noActiveAds) {
+    console.log('ℹ️ Aucune annonce ACTIVE trouvée sur aucun compte — rien à faire ce cycle.');
+  }
   console.log(`===== Cycle finished =====\n`);
 
   const summaryLines = [
     `<b>Meta Ads Auto Monitor</b> — ${startTime}`,
     `Checked: ${checked} | Paused: ${paused} | Skipped: ${skipped} | Blacklistées (ignorées): ${ignoredBlacklisted}`,
     '',
-    ...adReportLines,
+    ...(noActiveAds
+      ? ["ℹ️ Aucune annonce ACTIVE trouvée sur aucun compte suivi — rien n'a été évalué ce cycle."]
+      : adReportLines),
   ];
   await sendTelegramReport(summaryLines);
 }
