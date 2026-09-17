@@ -4,7 +4,9 @@
   "description": "نظام المراقبة التلقائية للإعلانات - Meta Ads Auto Monitor",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "restart-winners": "node restart-winners.js",
+    "daily-report": "node daily-report.js"
   },
   "dependencies": {
     "axios": "^1.7.9"
