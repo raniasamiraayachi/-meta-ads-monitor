@@ -15,6 +15,29 @@ Any ad that doesn't match either rule is left untouched. If a read error occurs 
 
 ---
 
+## What happens when an ad hits the hard cap
+
+Hitting the hard cap (`spend > $3.5`) doesn't always mean "pause and forget". Three things can happen, checked in this order:
+
+1. **Already used its 2nd chance** — if this exact ad is itself a duplicate created by rule 2 below, it's just paused. No further duplicating (avoids an infinite loop).
+2. **Proven "winning" ad** — if the ad's **lifetime** stats show more than 3 sales at an average cost below $3, it's paused but scheduled to **restart automatically at 00:00 Algeria time**, giving it a fresh day. If this pause‑then‑restart happens **3 days in a row**, the ad is **permanently blacklisted**: paused for good and never checked or touched again.
+3. **Got a sale today, but not (yet) a proven winner** — if the ad has ≥1 sale today and hits the cap, it's paused and **duplicated** (identical budget/targeting/creative) for one extra shot. If that duplicate also hits the cap with a sale, see rule 1 — it's just paused, no third clone.
+4. **No sales, not a winner** — paused normally, same as the base hard-cap rule.
+
+This needs to remember things between runs (which ads already got their 2nd chance, streak counts, which ads are blacklisted, which winners are waiting for their midnight restart). That state lives in `state.json` at the repo root, and the workflow commits it back to the repo after every run and after every midnight restart.
+
+A second workflow, `restart-winners.yml`, runs once a day at 00:00 Algeria time (`23:00 UTC` — Algeria has no daylight saving) and reactivates any ad queued up by rule 2.
+
+Extra tunables (optional, in `ads-monitor.yml`'s `env:`):
+
+| Env var | Meaning | Default |
+| --- | --- | --- |
+| `WINNER_MIN_SALES` | Lifetime sales must be **more than** this to count as a "winner" | `3` |
+| `WINNER_MAX_AVG_COST` | Lifetime average cost/sale must be **below** this | `3` |
+| `WINNER_STREAK_LIMIT` | Consecutive cap-hit days before permanent blacklist | `3` |
+
+---
+
 ## 1) Push the code to GitHub
 
 1. Create a new repository (e.g. `meta-ads-monitor`)
@@ -78,9 +101,10 @@ Edit the `env:` section in `.github/workflows/ads-monitor.yml`:
 
 ## Important notes
 
-- Each ad is evaluated **independently** — one ad's status never affects another
+- Each ad's *stop rule* is evaluated independently — but the 2nd-chance duplicate, the winner streak count, and the blacklist are persisted in `state.json` and carried across runs and across days
 - GitHub Actions' schedule can occasionally run a minute or two late; this is normal and not an issue for this kind of monitoring
 - The free tier applies as long as the repository stays Public
+- To un-blacklist an ad or reset a streak, edit `state.json` directly (remove its entry from `blacklist` or `winnerStreaks`) and commit the change
 
 ## Possible future additions
 
