@@ -2,7 +2,7 @@ name: Meta Ads Winner Restart (00:00 Algérie)
 
 on:
   schedule:
-    - cron: '0 23 * * *' # 00:00 heure Algérie = 23:00 UTC (Algérie n'a pas d'heure d'été)
+    - cron: '7 23 * * *' # 00:00 heure Algérie = 23:00 UTC (Algérie n'a pas d'heure d'été)
   workflow_dispatch: {} # pour tester manuellement
 
 permissions:
