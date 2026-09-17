@@ -3,7 +3,7 @@ name: Meta Ads Daily Report
 on:
   schedule:
     # 09:00 UTC = 10:00 Algeria time (Algeria is UTC+1 all year, no DST)
-    - cron: '0 9 * * *'
+    - cron: '12 9 * * *'
   workflow_dispatch: {}
 
 jobs:
