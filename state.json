@@ -1,6 +1,16 @@
 {
   "blacklist": {},
   "secondChanceDuplicates": {},
-  "winnerStreaks": {},
-  "pendingRestarts": []
+  "winnerStreaks": {
+    "52866238558127": {
+      "streak": 1,
+      "lastCapDate": "2026-10-02"
+    }
+  },
+  "pendingRestarts": [
+    {
+      "adId": "52866238558127",
+      "adName": "122173387856969029"
+    }
+  ]
 }
